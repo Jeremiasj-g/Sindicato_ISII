@@ -11,6 +11,7 @@ interface EmpleadoModalProps {
 
 export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps) {
   const { addEmpleado, updateEmpleado, empleados } = useData();
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('personal');
   const [formData, setFormData] = useState<Partial<Empleado>>({
     nombre: '',
@@ -42,8 +43,9 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
     }
   }, [empleado, empleados]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     
     const empleadoData: Empleado = {
       id: empleado?.id || Date.now().toString(),
@@ -68,12 +70,15 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
       updatedAt: new Date().toISOString()
     };
 
-    if (empleado) {
-      updateEmpleado(empleado.id, empleadoData);
-    } else {
-      addEmpleado(empleadoData);
+    const result = empleado
+      ? await updateEmpleado(empleado.id, empleadoData)
+      : await addEmpleado(empleadoData);
+
+    if (result.error) {
+      setSubmitError(result.error);
+      return;
     }
-    
+
     onClose();
   };
 
@@ -162,6 +167,12 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
         </div>
 
         {/* Content */}
+        {submitError && (
+          <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             {activeTab === 'personal' && (

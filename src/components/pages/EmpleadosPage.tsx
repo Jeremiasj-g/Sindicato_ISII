@@ -1,27 +1,53 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Filter, Download, Edit, Eye, Trash2, Users } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { Empleado } from '../../types';
 import { EmpleadoModal } from '../modals/EmpleadoModal';
 
 export function EmpleadosPage() {
-  const { empleados, searchEmpleados } = useData();
+  const { empleados, searchEmpleados, deleteEmpleado, loadingEmpleados, empleadoError } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
   const [filterAfiliado, setFilterAfiliado] = useState<'todos' | 'afiliados' | 'no_afiliados'>('todos');
+  const [searchResults, setSearchResults] = useState<Empleado[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const runSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      setLoadingSearch(true);
+      const result = await searchEmpleados(searchQuery);
+      if (!ignore) {
+        setSearchResults(result);
+        setLoadingSearch(false);
+      }
+    };
+
+    runSearch();
+
+    return () => {
+      ignore = true;
+    };
+  }, [searchQuery, searchEmpleados]);
 
   const filteredEmpleados = useMemo(() => {
-    let result = searchQuery ? searchEmpleados(searchQuery) : empleados;
-    
+    let result = searchQuery.trim() ? searchResults : empleados;
+
     if (filterAfiliado !== 'todos') {
-      result = result.filter(emp => 
+      result = result.filter(emp =>
         filterAfiliado === 'afiliados' ? emp.esAfiliado : !emp.esAfiliado
       );
     }
-    
+
     return result;
-  }, [empleados, searchQuery, filterAfiliado, searchEmpleados]);
+  }, [empleados, searchQuery, searchResults, filterAfiliado]);
 
   const handleAddEmpleado = () => {
     setSelectedEmpleado(null);
@@ -36,6 +62,16 @@ export function EmpleadosPage() {
   const handleViewEmpleado = (empleado: Empleado) => {
     // Implementar vista detallada
     console.log('Ver empleado:', empleado);
+  };
+
+  const handleDeleteEmpleado = async (empleado: Empleado) => {
+    const confirmDelete = window.confirm(
+      `¿Seguro que querés dar de baja a ${empleado.nombre} ${empleado.apellido}?`
+    );
+
+    if (!confirmDelete) return;
+
+    await deleteEmpleado(empleado.id);
   };
 
   return (
@@ -55,6 +91,12 @@ export function EmpleadosPage() {
         </button>
       </div>
 
+      {empleadoError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          {empleadoError}
+        </div>
+      )}
+
       {/* Controles de búsqueda y filtros */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -68,7 +110,7 @@ export function EmpleadosPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Filter className="h-4 w-4 text-gray-400" />
             <select
@@ -81,7 +123,7 @@ export function EmpleadosPage() {
               <option value="no_afiliados">No Afiliados</option>
             </select>
           </div>
-          
+
           <button className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
             <Download className="h-4 w-4" />
             <span>Exportar</span>
@@ -135,8 +177,8 @@ export function EmpleadosPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col space-y-1">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        empleado.esAfiliado 
-                          ? 'bg-green-100 text-green-800' 
+                        empleado.esAfiliado
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
                         {empleado.esAfiliado ? 'Afiliado' : 'No Afiliado'}
@@ -167,6 +209,7 @@ export function EmpleadosPage() {
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => handleDeleteEmpleado(empleado)}
                         className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
                         title="Eliminar"
                       >
@@ -179,8 +222,12 @@ export function EmpleadosPage() {
             </tbody>
           </table>
         </div>
-        
-        {filteredEmpleados.length === 0 && (
+
+        {(loadingEmpleados || loadingSearch) && (
+          <div className="text-center py-8 text-sm text-gray-500">Cargando empleados...</div>
+        )}
+
+        {!loadingEmpleados && !loadingSearch && filteredEmpleados.length === 0 && (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No se encontraron empleados</p>

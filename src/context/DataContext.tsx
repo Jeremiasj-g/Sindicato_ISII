@@ -1,16 +1,25 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Empleado, Beneficio, Prestamo } from '../types';
-import { generateMockData } from '../utils/mockData';
+import {
+  createEmpleado,
+  deleteEmpleado as deleteEmpleadoDB,
+  getAllEmpleados,
+  searchEmpleados as searchEmpleadosDB,
+  updateEmpleado as updateEmpleadoDB
+} from '../lib';
 
 interface DataContextType {
   empleados: Empleado[];
   beneficios: Beneficio[];
   prestamos: Prestamo[];
-  addEmpleado: (empleado: Empleado) => void;
-  updateEmpleado: (id: string, empleado: Partial<Empleado>) => void;
-  deleteEmpleado: (id: string) => void;
+  loadingEmpleados: boolean;
+  empleadoError: string | null;
+  refreshEmpleados: () => Promise<void>;
+  addEmpleado: (empleado: Empleado) => Promise<{ error: string | null }>;
+  updateEmpleado: (id: string, empleado: Partial<Empleado>) => Promise<{ error: string | null }>;
+  deleteEmpleado: (id: string) => Promise<{ error: string | null }>;
   getEmpleadoById: (id: string) => Empleado | undefined;
-  searchEmpleados: (query: string) => Empleado[];
+  searchEmpleados: (query: string) => Promise<Empleado[]>;
   addBeneficio: (beneficio: Beneficio) => void;
   updateBeneficio: (id: string, beneficio: Partial<Beneficio>) => void;
   getBeneficiosByEmpleado: (empleadoId: string) => Beneficio[];
@@ -22,37 +31,91 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [empleados, setEmpleados] = useState<Empleado[]>(generateMockData());
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
+  const [loadingEmpleados, setLoadingEmpleados] = useState(true);
+  const [empleadoError, setEmpleadoError] = useState<string | null>(null);
 
-  const addEmpleado = (empleado: Empleado) => {
-    setEmpleados(prev => [...prev, empleado]);
+  const refreshEmpleados = useCallback(async () => {
+    setLoadingEmpleados(true);
+    const { data, error } = await getAllEmpleados();
+
+    if (error) {
+      setEmpleadoError(error);
+      setEmpleados([]);
+    } else {
+      setEmpleadoError(null);
+      setEmpleados(data);
+    }
+
+    setLoadingEmpleados(false);
+  }, []);
+
+  useEffect(() => {
+    refreshEmpleados();
+  }, [refreshEmpleados]);
+
+  const addEmpleado = async (empleado: Empleado) => {
+    const { data, error } = await createEmpleado(empleado);
+
+    if (error || !data) {
+      return { error: error || 'No se pudo crear el empleado' };
+    }
+
+    setEmpleados(prev => [...prev, data]);
+    return { error: null };
   };
 
-  const updateEmpleado = (id: string, updatedEmpleado: Partial<Empleado>) => {
-    setEmpleados(prev => prev.map(emp => 
-      emp.id === id ? { ...emp, ...updatedEmpleado, updatedAt: new Date().toISOString() } : emp
-    ));
+  const updateEmpleado = async (id: string, updatedEmpleado: Partial<Empleado>) => {
+    const { data, error } = await updateEmpleadoDB(Number(id), updatedEmpleado);
+
+    if (error || !data) {
+      return { error: error || 'No se pudo actualizar el empleado' };
+    }
+
+    setEmpleados(prev => prev.map(emp => (emp.id === id ? data : emp)));
+    return { error: null };
   };
 
-  const deleteEmpleado = (id: string) => {
-    setEmpleados(prev => prev.filter(emp => emp.id !== id));
+  const deleteEmpleado = async (id: string) => {
+    const { success, error } = await deleteEmpleadoDB(Number(id));
+
+    if (!success || error) {
+      return { error: error || 'No se pudo eliminar el empleado' };
+    }
+
+    setEmpleados(prev =>
+      prev.map(emp =>
+        emp.id === id
+          ? {
+              ...emp,
+              estadoLaboral: 'inactivo',
+              updatedAt: new Date().toISOString()
+            }
+          : emp
+      )
+    );
+
+    return { error: null };
   };
 
   const getEmpleadoById = (id: string): Empleado | undefined => {
     return empleados.find(emp => emp.id === id);
   };
 
-  const searchEmpleados = (query: string): Empleado[] => {
-    const searchTerm = query.toLowerCase();
-    return empleados.filter(emp => 
-      emp.nombre.toLowerCase().includes(searchTerm) ||
-      emp.apellido.toLowerCase().includes(searchTerm) ||
-      emp.dni.includes(searchTerm) ||
-      emp.cuil.includes(searchTerm) ||
-      emp.legajo.includes(searchTerm)
-    );
+  const searchEmpleados = async (query: string): Promise<Empleado[]> => {
+    if (!query.trim()) return empleados;
+
+    const { data, error } = await searchEmpleadosDB(query);
+
+    if (error) {
+      setEmpleadoError(error);
+      return [];
+    }
+
+    setEmpleadoError(null);
+    return data;
   };
 
   const addBeneficio = (beneficio: Beneficio) => {
@@ -88,6 +151,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       empleados,
       beneficios,
       prestamos,
+      loadingEmpleados,
+      empleadoError,
+      refreshEmpleados,
       addEmpleado,
       updateEmpleado,
       deleteEmpleado,

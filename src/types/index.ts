@@ -98,3 +98,27 @@ export interface ReporteFiltro {
   operador: 'igual' | 'contiene' | 'mayor_que' | 'menor_que' | 'entre';
   valor: string | number | Date;
 }
+
+export interface UsuarioSistema {
+  id: string;
+  username: string;
+  passwordHash: string;
+  rolId: number | null;
+  rolNombre: string | null;
+  activo: boolean;
+  fechaAlta: string;
+}
+
+export interface CreateUsuarioPayload {
+  username: string;
+  passwordHash: string;
+  rolId?: number | null;
+  activo?: boolean;
+}
+
+export interface UpdateUsuarioPayload {
+  username?: string;
+  passwordHash?: string;
+  rolId?: number | null;
+  activo?: boolean;
+}

@@ -1,248 +1,268 @@
-import { supabase } from '../config/supabase'
-import { FamiliarInsert, FamiliarUpdate, FamiliarDB } from '../types/familiares.types'
 import { Familiar } from '../../types'
+import { supabase } from '../config/supabase'
+import type { Database } from '../types/database.types'
 
-/**
- * Familiar Controller
- * Handles all database operations for familiares (family group members)
- */
+type ConyugeRow = Database['public']['Tables']['conyuges']['Row']
+type HijoRow = Database['public']['Tables']['hijos']['Row']
+type PadresEmpleadoRow = Database['public']['Tables']['padres_empleado']['Row']
 
-/**
- * Convert database row to application Familiar type
- */
-export const mapFamiliarDBToFamiliar = (familiarDB: FamiliarDB): Familiar => {
+type EscolaridadApp = Familiar['escolaridad']
+
+type ResultadoFamiliares = {
+  data: Familiar[]
+  error: string | null
+}
+
+const normalizarTexto = (valor?: string | null) => (valor ?? '').trim()
+
+const dividirNombreCompleto = (nombreCompleto?: string | null) => {
+  const limpio = normalizarTexto(nombreCompleto)
+
+  if (!limpio) {
+    return { nombre: '', apellido: '' }
+  }
+
+  const partes = limpio.split(/\s+/)
+
+  if (partes.length === 1) {
+    return { nombre: partes[0], apellido: '' }
+  }
+
   return {
-    id: familiarDB.id.toString(),
-    empleadoId: familiarDB.empleado_id.toString(),
-    nombre: familiarDB.nombre,
-    apellido: familiarDB.apellido,
-    cuil: familiarDB.cuil || undefined,
-    parentesco: familiarDB.parentesco as 'conyuge' | 'hijo' | 'padre' | 'madre' | 'otro',
-    fechaNacimiento: familiarDB.fecha_nacimiento || undefined,
-    escolaridad: familiarDB.escolaridad as 'inicial' | 'primaria' | 'secundaria' | 'terciaria' | 'universitaria' | 'ninguna' || undefined,
-    esEstudiante: familiarDB.es_estudiante
+    nombre: partes.slice(0, -1).join(' '),
+    apellido: partes.slice(-1).join(' ')
   }
 }
 
-/**
- * Convert application Familiar type to database insert type
- */
-export const mapFamiliarToFamiliarInsert = (familiar: Partial<Familiar>, empleadoId: number): FamiliarInsert => {
-  return {
-    empleado_id: empleadoId,
-    nombre: familiar.nombre || '',
-    apellido: familiar.apellido || '',
-    cuil: familiar.cuil || null,
-    parentesco: familiar.parentesco || 'hijo',
-    fecha_nacimiento: familiar.fechaNacimiento || null,
-    escolaridad: familiar.escolaridad || null,
-    es_estudiante: familiar.esEstudiante || false
+const construirNombreCompleto = (nombre?: string, apellido?: string) => {
+  return [normalizarTexto(nombre), normalizarTexto(apellido)]
+    .filter(Boolean)
+    .join(' ')
+}
+
+const toAppEscolaridad = (value?: string | null): EscolaridadApp => {
+  switch (value) {
+    case 'Inicial':
+      return 'inicial'
+    case 'Primaria':
+      return 'primaria'
+    case 'Secundaria':
+      return 'secundaria'
+    case 'Terciaria':
+      return 'terciaria'
+    case 'Universitaria':
+      return 'universitaria'
+    default:
+      return 'ninguna'
   }
 }
 
-/**
- * Create a new familiar for an empleado
- */
-export const createFamiliar = async (empleadoId: number, familiarData: Partial<Familiar>) => {
+const toDbEscolaridad = (value?: EscolaridadApp) => {
+  switch (value) {
+    case 'inicial':
+      return 'Inicial'
+    case 'primaria':
+      return 'Primaria'
+    case 'secundaria':
+      return 'Secundaria'
+    case 'terciaria':
+      return 'Terciaria'
+    case 'universitaria':
+      return 'Universitaria'
+    default:
+      return null
+  }
+}
+
+const calcularEdad = (fechaNacimiento?: string) => {
+  if (!fechaNacimiento) return undefined
+
+  const hoy = new Date()
+  const nacimiento = new Date(fechaNacimiento)
+
+  let edad = hoy.getFullYear() - nacimiento.getFullYear()
+  const mes = hoy.getMonth() - nacimiento.getMonth()
+
+  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad -= 1
+  }
+
+  return edad
+}
+
+const mapConyugeToFamiliar = (conyuge: ConyugeRow): Familiar => {
+  const { nombre, apellido } = dividirNombreCompleto(conyuge.nombre_completo)
+
+  return {
+    id: `conyuge-${conyuge.id}`,
+    empleadoId: String(conyuge.empleado_id ?? ''),
+    nombre,
+    apellido,
+    cuil: conyuge.cuil ?? undefined,
+    parentesco: 'conyuge',
+    esEstudiante: false
+  }
+}
+
+const mapHijoToFamiliar = (hijo: HijoRow): Familiar => {
+  const { nombre, apellido } = dividirNombreCompleto(hijo.nombre_completo)
+  const escolaridad = toAppEscolaridad(hijo.escolaridad)
+
+  return {
+    id: `hijo-${hijo.id}`,
+    empleadoId: String(hijo.empleado_id ?? ''),
+    nombre,
+    apellido,
+    cuil: hijo.cuil ?? undefined,
+    parentesco: 'hijo',
+    fechaNacimiento: hijo.fecha_nacimiento,
+    edad: calcularEdad(hijo.fecha_nacimiento),
+    escolaridad,
+    esEstudiante: escolaridad !== 'ninguna'
+  }
+}
+
+const mapPadresToFamiliares = (padres: PadresEmpleadoRow): Familiar[] => {
+  const familiares: Familiar[] = []
+
+  if (padres.nombre_padre) {
+    const { nombre, apellido } = dividirNombreCompleto(padres.nombre_padre)
+    familiares.push({
+      id: `padre-${padres.id}`,
+      empleadoId: String(padres.empleado_id ?? ''),
+      nombre,
+      apellido,
+      parentesco: 'padre',
+      esEstudiante: false
+    })
+  }
+
+  if (padres.nombre_madre) {
+    const { nombre, apellido } = dividirNombreCompleto(padres.nombre_madre)
+    familiares.push({
+      id: `madre-${padres.id}`,
+      empleadoId: String(padres.empleado_id ?? ''),
+      nombre,
+      apellido,
+      parentesco: 'madre',
+      esEstudiante: false
+    })
+  }
+
+  return familiares
+}
+
+export const getFamiliaresByEmpleadoId = async (empleadoId: number): Promise<ResultadoFamiliares> => {
   try {
-    const insertData = mapFamiliarToFamiliarInsert(familiarData, empleadoId)
+    const [conyugesRes, hijosRes, padresRes] = await Promise.all([
+      supabase
+        .from('conyuges')
+        .select('*')
+        .eq('empleado_id', empleadoId),
+      supabase
+        .from('hijos')
+        .select('*')
+        .eq('empleado_id', empleadoId)
+        .order('fecha_nacimiento', { ascending: true }),
+      supabase
+        .from('padres_empleado')
+        .select('*')
+        .eq('empleado_id', empleadoId)
+        .maybeSingle()
+    ])
 
-    const { data, error } = await supabase
-      .from('familiares')
-      .insert(insertData)
-      .select()
-      .single()
+    if (conyugesRes.error) throw conyugesRes.error
+    if (hijosRes.error) throw hijosRes.error
+    if (padresRes.error) throw padresRes.error
 
-    if (error) throw error
+    const familiares: Familiar[] = [
+      ...(conyugesRes.data ?? []).map(mapConyugeToFamiliar),
+      ...(hijosRes.data ?? []).map(mapHijoToFamiliar),
+      ...(padresRes.data ? mapPadresToFamiliares(padresRes.data) : [])
+    ]
 
     return {
-      data: mapFamiliarDBToFamiliar(data),
+      data: familiares,
       error: null
     }
-  } catch (error: any) {
-    console.error('Error creating familiar:', error)
-    return {
-      data: null,
-      error: error.message || 'Error al crear el familiar'
-    }
-  }
-}
-
-/**
- * Get all familiares for an empleado
- */
-export const getFamiliaresByEmpleadoId = async (empleadoId: number) => {
-  try {
-    const { data, error } = await supabase
-      .from('familiares')
-      .select('*')
-      .eq('empleado_id', empleadoId)
-
-    if (error) throw error
-
-    return {
-      data: data ? data.map(mapFamiliarDBToFamiliar) : [],
-      error: null
-    }
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al obtener los familiares'
     console.error('Error fetching familiares:', error)
     return {
       data: [],
-      error: error.message || 'Error al obtener los familiares'
+      error: message
     }
   }
 }
 
-/**
- * Get familiar by ID
- */
-export const getFamiliarById = async (id: number) => {
+export const replaceGrupoFamiliar = async (empleadoId: number, familiares: Familiar[]) => {
   try {
-    const { data, error } = await supabase
-      .from('familiares')
-      .select('*')
-      .eq('id', id)
-      .single()
+    const conyuge = familiares.find((familiar) => familiar.parentesco === 'conyuge')
+    const hijos = familiares.filter((familiar) => familiar.parentesco === 'hijo')
+    const padre = familiares.find((familiar) => familiar.parentesco === 'padre')
+    const madre = familiares.find((familiar) => familiar.parentesco === 'madre')
 
-    if (error) throw error
-
-    return {
-      data: data ? mapFamiliarDBToFamiliar(data) : null,
-      error: null
-    }
-  } catch (error: any) {
-    console.error('Error fetching familiar:', error)
-    return {
-      data: null,
-      error: error.message || 'Error al obtener el familiar'
-    }
-  }
-}
-
-/**
- * Update familiar by ID
- */
-export const updateFamiliar = async (id: number, familiarData: Partial<Familiar>) => {
-  try {
-    const updateData: FamiliarUpdate = {
-      nombre: familiarData.nombre,
-      apellido: familiarData.apellido,
-      cuil: familiarData.cuil || null,
-      parentesco: familiarData.parentesco,
-      fecha_nacimiento: familiarData.fechaNacimiento || null,
-      escolaridad: familiarData.escolaridad || null,
-      es_estudiante: familiarData.esEstudiante
+    const hijosSinFecha = hijos.filter((hijo) => !hijo.fechaNacimiento)
+    if (hijosSinFecha.length > 0) {
+      throw new Error('Cada hijo debe tener fecha de nacimiento para poder guardarse.')
     }
 
-    const { data, error } = await supabase
-      .from('familiares')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    await Promise.all([
+      supabase.from('conyuges').delete().eq('empleado_id', empleadoId),
+      supabase.from('hijos').delete().eq('empleado_id', empleadoId),
+      supabase.from('padres_empleado').delete().eq('empleado_id', empleadoId)
+    ])
 
-    if (error) throw error
+    if (conyuge) {
+      const { error } = await supabase
+        .from('conyuges')
+        .insert({
+          empleado_id: empleadoId,
+          nombre_completo: construirNombreCompleto(conyuge.nombre, conyuge.apellido) || null,
+          cuil: normalizarTexto(conyuge.cuil) || null
+        })
 
-    return {
-      data: mapFamiliarDBToFamiliar(data),
-      error: null
+      if (error) throw error
     }
-  } catch (error: any) {
-    console.error('Error updating familiar:', error)
-    return {
-      data: null,
-      error: error.message || 'Error al actualizar el familiar'
+
+    if (hijos.length > 0) {
+      const { error } = await supabase
+        .from('hijos')
+        .insert(
+          hijos.map((hijo) => ({
+            empleado_id: empleadoId,
+            nombre_completo: construirNombreCompleto(hijo.nombre, hijo.apellido),
+            cuil: normalizarTexto(hijo.cuil) || null,
+            fecha_nacimiento: hijo.fechaNacimiento!,
+            escolaridad: toDbEscolaridad(hijo.escolaridad)
+          }))
+        )
+
+      if (error) throw error
     }
-  }
-}
 
-/**
- * Delete familiar by ID
- */
-export const deleteFamiliar = async (id: number) => {
-  try {
-    const { error } = await supabase
-      .from('familiares')
-      .delete()
-      .eq('id', id)
+    if (padre || madre) {
+      const { error } = await supabase
+        .from('padres_empleado')
+        .insert({
+          empleado_id: empleadoId,
+          nombre_padre: padre ? construirNombreCompleto(padre.nombre, padre.apellido) : null,
+          nombre_madre: madre ? construirNombreCompleto(madre.nombre, madre.apellido) : null
+        })
 
-    if (error) throw error
+      if (error) throw error
+    }
 
     return {
       success: true,
       error: null
     }
-  } catch (error: any) {
-    console.error('Error deleting familiar:', error)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al guardar el grupo familiar'
+    console.error('Error replacing grupo familiar:', error)
     return {
       success: false,
-      error: error.message || 'Error al eliminar el familiar'
-    }
-  }
-}
-
-/**
- * Create or update multiple familiares for an empleado
- */
-export const syncFamiliares = async (empleadoId: number, familiares: Partial<Familiar>[]) => {
-  try {
-    // Get existing familiares
-    const { data: existingFamiliares } = await getFamiliaresByEmpleadoId(empleadoId)
-    const existingIds = existingFamiliares?.map(f => parseInt(f.id)) || []
-
-    const results = {
-      created: [] as Familiar[],
-      updated: [] as Familiar[],
-      deleted: [] as number[],
-      errors: [] as string[]
-    }
-
-    // Process familiares
-    for (const familiar of familiares) {
-      if (familiar.id && existingIds.includes(parseInt(familiar.id))) {
-        // Update existing
-        const { data, error } = await updateFamiliar(parseInt(familiar.id), familiar)
-        if (error) {
-          results.errors.push(error)
-        } else if (data) {
-          results.updated.push(data)
-        }
-      } else {
-        // Create new
-        const { data, error } = await createFamiliar(empleadoId, familiar)
-        if (error) {
-          results.errors.push(error)
-        } else if (data) {
-          results.created.push(data)
-        }
-      }
-    }
-
-    // Delete removed familiares
-    const currentIds = familiares
-      .filter(f => f.id)
-      .map(f => parseInt(f.id!))
-    
-    const idsToDelete = existingIds.filter(id => !currentIds.includes(id))
-    
-    for (const id of idsToDelete) {
-      const { error } = await deleteFamiliar(id)
-      if (error) {
-        results.errors.push(error)
-      } else {
-        results.deleted.push(id)
-      }
-    }
-
-    return {
-      data: results,
-      error: results.errors.length > 0 ? results.errors.join(', ') : null
-    }
-  } catch (error: any) {
-    console.error('Error syncing familiares:', error)
-    return {
-      data: null,
-      error: error.message || 'Error al sincronizar los familiares'
+      error: message
     }
   }
 }

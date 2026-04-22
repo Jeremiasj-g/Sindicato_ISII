@@ -1,50 +1,70 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save, User, Users, Phone } from 'lucide-react';
-import { Empleado, Familiar } from '../../types';
-import { useData } from '../../context/DataContext';
+import { useEffect, useState } from 'react'
+import { X, Plus, Trash2, Save, User, Users, Phone } from 'lucide-react'
+import { Empleado, Familiar } from '../../types'
+import { useData } from '../../context/DataContext'
 
 interface EmpleadoModalProps {
-  empleado: Empleado | null;
-  isOpen: boolean;
-  onClose: () => void;
+  empleado: Empleado | null
+  isOpen: boolean
+  onClose: () => void
 }
 
+const createInitialFormData = (): Partial<Empleado> => ({
+  nombre: '',
+  apellido: '',
+  dni: '',
+  cuil: '',
+  legajo: '',
+  empresa: 'Aguas de Corrientes',
+  esAfiliado: true,
+  domicilio: '',
+  telefonoFijo: '',
+  telefonoCelular: '',
+  email: '',
+  fechaIngreso: '',
+  estadoLaboral: 'activo',
+  grupoFamiliar: []
+})
+
 export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps) {
-  const { addEmpleado, updateEmpleado, empleados } = useData();
-  const [activeTab, setActiveTab] = useState('personal');
-  const [formData, setFormData] = useState<Partial<Empleado>>({
-    nombre: '',
-    apellido: '',
-    dni: '',
-    cuil: '',
-    legajo: '',
-    empresa: 'Aguas de Corrientes',
-    esAfiliado: true,
-    domicilio: '',
-    telefonoFijo: '',
-    telefonoCelular: '',
-    email: '',
-    fechaIngreso: '',
-    estadoLaboral: 'activo',
-    grupoFamiliar: []
-  });
+  const { addEmpleado, updateEmpleado, empleados } = useData()
+  const [activeTab, setActiveTab] = useState('personal')
+  const [formData, setFormData] = useState<Partial<Empleado>>(createInitialFormData())
+  const [isSaving, setIsSaving] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (empleado) {
-      setFormData(empleado);
-    } else {
-      // Asignar número de afiliado automáticamente
-      const maxAfiliado = Math.max(...empleados.filter(e => e.esAfiliado).map(e => e.numeroAfiliado), 1000);
-      setFormData(prev => ({
-        ...prev,
-        numeroAfiliado: maxAfiliado + 1
-      }));
-    }
-  }, [empleado, empleados]);
+    setSubmitError(null)
+    setActiveTab('personal')
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    if (empleado) {
+      setFormData(empleado)
+      return
+    }
+
+    const maxAfiliado = Math.max(...empleados.filter((e) => e.esAfiliado).map((e) => e.numeroAfiliado), 1000)
+
+    setFormData({
+      ...createInitialFormData(),
+      numeroAfiliado: maxAfiliado + 1,
+      fechaIngreso: new Date().toISOString().split('T')[0]
+    })
+  }, [empleado, empleados, isOpen])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitError(null)
+
+    const hijosSinFecha = (formData.grupoFamiliar ?? []).filter(
+      (familiar) => familiar.parentesco === 'hijo' && !familiar.fechaNacimiento
+    )
+
+    if (hijosSinFecha.length > 0) {
+      setSubmitError('Cada hijo debe tener fecha de nacimiento para poder guardarse.')
+      setActiveTab('familiar')
+      return
+    }
+
     const empleadoData: Empleado = {
       id: empleado?.id || Date.now().toString(),
       numeroAfiliado: formData.esAfiliado ? (formData.numeroAfiliado || 0) : 0,
@@ -59,23 +79,30 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
       telefonoFijo: formData.telefonoFijo,
       telefonoCelular: formData.telefonoCelular,
       email: formData.email,
-      fechaIngreso: formData.fechaIngreso || '',
+      fechaIngreso: formData.fechaIngreso || new Date().toISOString().split('T')[0],
       estadoLaboral: formData.estadoLaboral || 'activo',
       grupoFamiliar: formData.grupoFamiliar || [],
       beneficios: empleado?.beneficios || [],
       prestamos: empleado?.prestamos || [],
       createdAt: empleado?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
-
-    if (empleado) {
-      updateEmpleado(empleado.id, empleadoData);
-    } else {
-      addEmpleado(empleadoData);
     }
-    
-    onClose();
-  };
+
+    setIsSaving(true)
+
+    const result = empleado
+      ? await updateEmpleado(empleado.id, empleadoData)
+      : await addEmpleado(empleadoData)
+
+    setIsSaving(false)
+
+    if (!result.success) {
+      setSubmitError(result.error ?? 'No se pudo guardar el empleado.')
+      return
+    }
+
+    onClose()
+  }
 
   const addFamiliar = () => {
     const nuevoFamiliar: Familiar = {
@@ -85,42 +112,41 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
       apellido: '',
       parentesco: 'hijo',
       esEstudiante: false
-    };
-    
-    setFormData(prev => ({
+    }
+
+    setFormData((prev) => ({
       ...prev,
       grupoFamiliar: [...(prev.grupoFamiliar || []), nuevoFamiliar]
-    }));
-  };
+    }))
+  }
 
   const updateFamiliar = (index: number, familiar: Partial<Familiar>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      grupoFamiliar: prev.grupoFamiliar?.map((f, i) => 
+      grupoFamiliar: prev.grupoFamiliar?.map((f, i) => (
         i === index ? { ...f, ...familiar } : f
-      ) || []
-    }));
-  };
+      )) || []
+    }))
+  }
 
   const removeFamiliar = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       grupoFamiliar: prev.grupoFamiliar?.filter((_, i) => i !== index) || []
-    }));
-  };
+    }))
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const tabs = [
     { id: 'personal', label: 'Datos Personales', icon: User },
     { id: 'familiar', label: 'Grupo Familiar', icon: Users },
     { id: 'contacto', label: 'Contacto', icon: Phone }
-  ];
+  ]
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="bg-blue-600 text-white p-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">
@@ -138,11 +164,10 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="border-b border-gray-200">
           <nav className="flex">
             {tabs.map((tab) => {
-              const Icon = tab.icon;
+              const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
@@ -156,14 +181,19 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
                 </button>
-              );
+              )
             })}
           </nav>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
+            {submitError && (
+              <div className="mx-6 mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {submitError}
+              </div>
+            )}
+
             {activeTab === 'personal' && (
               <div className="space-y-6 p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,12 +204,12 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="text"
                       value={formData.nombre || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, nombre: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Apellido *
@@ -187,7 +217,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="text"
                       value={formData.apellido || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, apellido: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, apellido: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
@@ -200,7 +230,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="text"
                       value={formData.dni || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, dni: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, dni: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
@@ -213,7 +243,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="text"
                       value={formData.cuil || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, cuil: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, cuil: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="20-12345678-9"
                       required
@@ -227,7 +257,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="text"
                       value={formData.legajo || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, legajo: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, legajo: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="ACO-001 o URB-045"
                       required
@@ -240,7 +270,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     </label>
                     <select
                       value={formData.empresa || 'Aguas de Corrientes'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, empresa: e.target.value as any }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, empresa: e.target.value as Empleado['empresa'] }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="Aguas de Corrientes">Aguas de Corrientes</option>
@@ -255,7 +285,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="date"
                       value={formData.fechaIngreso || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fechaIngreso: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, fechaIngreso: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     />
@@ -267,7 +297,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     </label>
                     <select
                       value={formData.estadoLaboral || 'activo'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, estadoLaboral: e.target.value as any }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, estadoLaboral: e.target.value as Empleado['estadoLaboral'] }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="activo">Activo</option>
@@ -284,7 +314,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                   <input
                     type="text"
                     value={formData.domicilio || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, domicilio: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, domicilio: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Dirección completa"
                     required
@@ -296,7 +326,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     type="checkbox"
                     id="esAfiliado"
                     checked={formData.esAfiliado || false}
-                    onChange={(e) => setFormData(prev => ({ ...prev, esAfiliado: e.target.checked }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, esAfiliado: e.target.checked }))}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label htmlFor="esAfiliado" className="text-sm font-medium text-gray-700">
@@ -312,7 +342,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="number"
                       value={formData.numeroAfiliado || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, numeroAfiliado: parseInt(e.target.value) }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, numeroAfiliado: Number(e.target.value) }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled
                     />
@@ -332,7 +362,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="tel"
                       value={formData.telefonoFijo || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, telefonoFijo: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, telefonoFijo: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="379-4123456"
                     />
@@ -345,7 +375,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                     <input
                       type="tel"
                       value={formData.telefonoCelular || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, telefonoCelular: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, telefonoCelular: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="379-154123456"
                     />
@@ -359,7 +389,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                   <input
                     type="email"
                     value={formData.email || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="empleado@email.com"
                   />
@@ -383,7 +413,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
 
                 <div className="space-y-4">
                   {formData.grupoFamiliar?.map((familiar, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div key={familiar.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="font-medium text-gray-900">Familiar {index + 1}</h4>
                         <button
@@ -439,7 +469,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                           </label>
                           <select
                             value={familiar.parentesco}
-                            onChange={(e) => updateFamiliar(index, { parentesco: e.target.value as any })}
+                            onChange={(e) => updateFamiliar(index, { parentesco: e.target.value as Familiar['parentesco'] })}
                             className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="conyuge">Cónyuge</option>
@@ -468,7 +498,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                           </label>
                           <select
                             value={familiar.escolaridad || 'ninguna'}
-                            onChange={(e) => updateFamiliar(index, { escolaridad: e.target.value as any })}
+                            onChange={(e) => updateFamiliar(index, { escolaridad: e.target.value as Familiar['escolaridad'] })}
                             className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="ninguna">Ninguna</option>
@@ -494,7 +524,7 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
                       </div>
                     </div>
                   ))}
-                  
+
                   {(!formData.grupoFamiliar || formData.grupoFamiliar.length === 0) && (
                     <div className="text-center py-8 text-gray-500">
                       <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -507,25 +537,26 @@ export function EmpleadoModal({ empleado, isOpen, onClose }: EmpleadoModalProps)
             )}
           </div>
 
-          {/* Footer */}
           <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isSaving}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70"
+              disabled={isSaving}
             >
               <Save className="h-4 w-4" />
-              <span>{empleado ? 'Actualizar' : 'Guardar'}</span>
+              <span>{isSaving ? 'Guardando...' : empleado ? 'Actualizar' : 'Guardar'}</span>
             </button>
           </div>
         </form>
       </div>
     </div>
-  );
+  )
 }

@@ -1,46 +1,65 @@
-import { useState, useMemo } from 'react';
-import { Search, Plus, Filter, Download, Edit, Eye, Trash2, Users } from 'lucide-react';
-import { useData } from '../../context/DataContext';
-import { Empleado } from '../../types';
-import { EmpleadoModal } from '../modals/EmpleadoModal';
+import { useMemo, useState } from 'react'
+import { Search, Plus, Filter, Download, Edit, Eye, Trash2, Users } from 'lucide-react'
+import { useData } from '../../context/DataContext'
+import { Empleado } from '../../types'
+import { EmpleadoModal } from '../modals/EmpleadoModal'
 
 export function EmpleadosPage() {
-  const { empleados, searchEmpleados } = useData();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null);
-  const [filterAfiliado, setFilterAfiliado] = useState<'todos' | 'afiliados' | 'no_afiliados'>('todos');
+  const {
+    empleados,
+    searchEmpleados,
+    deleteEmpleado,
+    loadingEmpleados,
+    errorEmpleados
+  } = useData()
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [selectedEmpleado, setSelectedEmpleado] = useState<Empleado | null>(null)
+  const [filterAfiliado, setFilterAfiliado] = useState<'todos' | 'afiliados' | 'no_afiliados'>('todos')
 
   const filteredEmpleados = useMemo(() => {
-    let result = searchQuery ? searchEmpleados(searchQuery) : empleados;
-    
+    let result = searchQuery ? searchEmpleados(searchQuery) : empleados
+
     if (filterAfiliado !== 'todos') {
-      result = result.filter(emp => 
+      result = result.filter((emp) => (
         filterAfiliado === 'afiliados' ? emp.esAfiliado : !emp.esAfiliado
-      );
+      ))
     }
-    
-    return result;
-  }, [empleados, searchQuery, filterAfiliado, searchEmpleados]);
+
+    return result
+  }, [empleados, filterAfiliado, searchEmpleados, searchQuery])
 
   const handleAddEmpleado = () => {
-    setSelectedEmpleado(null);
-    setShowModal(true);
-  };
+    setSelectedEmpleado(null)
+    setShowModal(true)
+  }
 
   const handleEditEmpleado = (empleado: Empleado) => {
-    setSelectedEmpleado(empleado);
-    setShowModal(true);
-  };
+    setSelectedEmpleado(empleado)
+    setShowModal(true)
+  }
 
   const handleViewEmpleado = (empleado: Empleado) => {
-    // Implementar vista detallada
-    console.log('Ver empleado:', empleado);
-  };
+    console.log('Ver empleado:', empleado)
+  }
+
+  const handleDeleteEmpleado = async (empleado: Empleado) => {
+    const confirmar = window.confirm(
+      `¿Seguro que querés dar de baja a ${empleado.nombre} ${empleado.apellido}?`
+    )
+
+    if (!confirmar) return
+
+    const { success, error } = await deleteEmpleado(empleado.id)
+
+    if (!success) {
+      window.alert(error ?? 'No se pudo dar de baja al empleado.')
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header con controles */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Empleados</h2>
@@ -55,7 +74,6 @@ export function EmpleadosPage() {
         </button>
       </div>
 
-      {/* Controles de búsqueda y filtros */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
@@ -68,12 +86,12 @@ export function EmpleadosPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Filter className="h-4 w-4 text-gray-400" />
             <select
               value={filterAfiliado}
-              onChange={(e) => setFilterAfiliado(e.target.value as any)}
+              onChange={(e) => setFilterAfiliado(e.target.value as 'todos' | 'afiliados' | 'no_afiliados')}
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               <option value="todos">Todos</option>
@@ -81,7 +99,7 @@ export function EmpleadosPage() {
               <option value="no_afiliados">No Afiliados</option>
             </select>
           </div>
-          
+
           <button className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
             <Download className="h-4 w-4" />
             <span>Exportar</span>
@@ -89,7 +107,12 @@ export function EmpleadosPage() {
         </div>
       </div>
 
-      {/* Tabla de empleados */}
+      {errorEmpleados && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+          {errorEmpleados}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -135,8 +158,8 @@ export function EmpleadosPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col space-y-1">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        empleado.esAfiliado 
-                          ? 'bg-green-100 text-green-800' 
+                        empleado.esAfiliado
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
                         {empleado.esAfiliado ? 'Afiliado' : 'No Afiliado'}
@@ -167,6 +190,7 @@ export function EmpleadosPage() {
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => void handleDeleteEmpleado(empleado)}
                         className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
                         title="Eliminar"
                       >
@@ -179,16 +203,19 @@ export function EmpleadosPage() {
             </tbody>
           </table>
         </div>
-        
-        {filteredEmpleados.length === 0 && (
+
+        {!loadingEmpleados && filteredEmpleados.length === 0 && (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No se encontraron empleados</p>
           </div>
         )}
+
+        {loadingEmpleados && (
+          <div className="text-center py-12 text-gray-500">Cargando empleados...</div>
+        )}
       </div>
 
-      {/* Modal para agregar/editar empleado */}
       {showModal && (
         <EmpleadoModal
           empleado={selectedEmpleado}
@@ -197,5 +224,5 @@ export function EmpleadosPage() {
         />
       )}
     </div>
-  );
+  )
 }

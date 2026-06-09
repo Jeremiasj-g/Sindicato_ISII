@@ -13,6 +13,7 @@ const pageNames = {
   empleados: 'Gestión de Empleados',
   empresas: 'Gestión de Empresas',
   beneficios: 'Beneficios y Asistencias',
+  prestamos: 'Gestión de Préstamos',
   reportes: 'Reportes y Estadísticas',
   configuracion: 'Configuración del Sistema'
 };

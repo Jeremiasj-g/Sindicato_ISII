@@ -10,8 +10,9 @@ import { ReportesPage } from './components/pages/ReportesPage';
 import { ConfiguracionPage } from './components/pages/ConfiguracionPage';
 import { DataProvider } from './context/DataContext';
 import { EmpresasPage } from './components/pages/EmpresasPage'
+import { PrestamosPage } from './components/pages/PrestamosPage'
 
-export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'reportes' | 'configuracion';
+export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'prestamos' | 'reportes' | 'configuracion';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -43,6 +44,8 @@ function AppContent() {
         return <EmpresasPage />
       case 'beneficios':
         return <BeneficiosPage />;
+      case 'prestamos':
+        return <PrestamosPage />
       case 'reportes':
         return <ReportesPage />;
       case 'configuracion':

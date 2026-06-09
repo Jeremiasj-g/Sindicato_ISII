@@ -418,6 +418,82 @@ export type Database = {
           },
         ]
       }
+      prestamos: {
+        Row: {
+          activo: boolean | null
+          empleado_id: number | null
+          fecha_fin: string
+          fecha_inicio: string
+          id: number
+          interes_porcentaje: number | null
+          monto: number
+          total_con_interes: number | null
+        }
+        Insert: {
+          activo?: boolean | null
+          empleado_id?: number | null
+          fecha_fin: string
+          fecha_inicio: string
+          id?: number
+          interes_porcentaje?: number | null
+          monto: number
+          total_con_interes?: number | null
+        }
+        Update: {
+          activo?: boolean | null
+          empleado_id?: number | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: number
+          interes_porcentaje?: number | null
+          monto?: number
+          total_con_interes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prestamos_empleado_id_fkey"
+            columns: ["empleado_id"]
+            isOneToOne: false
+            referencedRelation: "empleados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuotas_prestamo: {
+        Row: {
+          fecha_pago: string | null
+          id: number
+          monto: number | null
+          numero_cuota: number | null
+          pagada: boolean | null
+          prestamo_id: number | null
+        }
+        Insert: {
+          fecha_pago?: string | null
+          id?: number
+          monto?: number | null
+          numero_cuota?: number | null
+          pagada?: boolean | null
+          prestamo_id?: number | null
+        }
+        Update: {
+          fecha_pago?: string | null
+          id?: number
+          monto?: number | null
+          numero_cuota?: number | null
+          pagada?: boolean | null
+          prestamo_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuotas_prestamo_prestamo_id_fkey"
+            columns: ["prestamo_id"]
+            isOneToOne: false
+            referencedRelation: "prestamos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

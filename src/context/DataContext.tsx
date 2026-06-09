@@ -19,6 +19,17 @@ import {
   replaceGrupoFamiliar
 } from '../lib/controllers/familiar.controller'
 
+import {
+  createPrestamo as createPrestamoController,
+  getAllPrestamos as getAllPrestamosController,
+  updatePrestamo as updatePrestamoController,
+  deletePrestamo as deletePrestamoController,
+  pagarCuotaPrestamo as pagarCuotaPrestamoController,
+  revertirUltimaCuotaPrestamo as revertirUltimaCuotaPrestamoController
+} from '../lib/controllers/prestamo.controller'
+
+
+
 type MutationResult = {
   success: boolean
   error: string | null
@@ -43,9 +54,18 @@ interface DataContextType {
   deleteBeneficio: (id: string) => Promise<MutationResult>
   refreshBeneficios: () => Promise<void>
   getBeneficiosByEmpleado: (empleadoId: string) => Beneficio[]
-  addPrestamo: (prestamo: Prestamo) => void
-  updatePrestamo: (id: string, prestamo: Partial<Prestamo>) => void
+
+  loadingPrestamos: boolean
+  errorPrestamos: string | null
+  addPrestamo: (prestamo: Prestamo) => Promise<MutationResult>
+  updatePrestamo: (id: string, prestamo: Partial<Prestamo>) => Promise<MutationResult>
+  deletePrestamo: (id: string) => Promise<MutationResult>
+  pagarCuotaPrestamo: (id: string) => Promise<MutationResult>
+  refreshPrestamos: () => Promise<void>
   getPrestamosByEmpleado: (empleadoId: string) => Prestamo[]
+  revertirUltimaCuotaPrestamo: (
+    id: string
+  ) => Promise<MutationResult>
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
@@ -75,6 +95,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [errorEmpleados, setErrorEmpleados] = useState<string | null>(null)
   const [loadingBeneficios, setLoadingBeneficios] = useState(true)
   const [errorBeneficios, setErrorBeneficios] = useState<string | null>(null)
+  const [loadingPrestamos, setLoadingPrestamos] = useState(true)
+  const [errorPrestamos, setErrorPrestamos] = useState<string | null>(null)
 
   const refreshEmpleados = async () => {
     setLoadingEmpleados(true)
@@ -97,6 +119,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refreshEmpleados()
     void refreshBeneficios()
+    void refreshPrestamos()
   }, [])
 
   const addEmpleado = async (empleado: Empleado): Promise<MutationResult> => {
@@ -304,18 +327,126 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return beneficios.filter((ben) => ben.empleadoId === empleadoId)
   }
 
-  const addPrestamo = (prestamo: Prestamo) => {
-    setPrestamos((prev) => [...prev, prestamo])
+  // Prestamos
+  const refreshPrestamos = async () => {
+    setLoadingPrestamos(true)
+    setErrorPrestamos(null)
+
+    const { data, error } = await getAllPrestamosController()
+
+    if (error) {
+      setErrorPrestamos(error)
+      setPrestamos([])
+      setLoadingPrestamos(false)
+      return
+    }
+
+    setPrestamos(data)
+    setLoadingPrestamos(false)
   }
 
-  const updatePrestamo = (id: string, updatedPrestamo: Partial<Prestamo>) => {
+  const addPrestamo = async (prestamo: Prestamo): Promise<MutationResult> => {
+    const { data, error } = await createPrestamoController(prestamo)
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo crear el préstamo.'
+      }
+    }
+
+    setPrestamos((prev) => [data, ...prev])
+
+    return {
+      success: true,
+      error: null
+    }
+  }
+
+  const updatePrestamo = async (
+    id: string,
+    updatedPrestamo: Partial<Prestamo>
+  ): Promise<MutationResult> => {
+    const { data, error } = await updatePrestamoController(Number(id), updatedPrestamo)
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo actualizar el préstamo.'
+      }
+    }
+
     setPrestamos((prev) => prev.map((pres) =>
-      pres.id === id ? { ...pres, ...updatedPrestamo } : pres
+      pres.id === id ? data : pres
     ))
+
+    return {
+      success: true,
+      error: null
+    }
+  }
+
+  const deletePrestamo = async (id: string): Promise<MutationResult> => {
+    const { success, error } = await deletePrestamoController(Number(id))
+
+    if (!success) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo eliminar el préstamo.'
+      }
+    }
+
+    setPrestamos((prev) => prev.filter((pres) => pres.id !== id))
+
+    return {
+      success: true,
+      error: null
+    }
+  }
+
+  const pagarCuotaPrestamo = async (id: string): Promise<MutationResult> => {
+    const { success, error } = await pagarCuotaPrestamoController(Number(id))
+
+    if (!success) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo pagar la cuota.'
+      }
+    }
+
+    await refreshPrestamos()
+
+    return {
+      success: true,
+      error: null
+    }
   }
 
   const getPrestamosByEmpleado = (empleadoId: string): Prestamo[] => {
     return prestamos.filter((pres) => pres.empleadoId === empleadoId)
+  }
+
+  const revertirUltimaCuotaPrestamo = async (
+    id: string
+  ): Promise<MutationResult> => {
+    const { success, error } =
+      await revertirUltimaCuotaPrestamoController(
+        Number(id)
+      )
+
+    if (!success) {
+      return {
+        success: false,
+        error
+      }
+    }
+
+    await refreshPrestamos()
+
+    return {
+      success: true,
+      error: null
+    }
   }
 
   return (
@@ -340,7 +471,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       getBeneficiosByEmpleado,
       addPrestamo,
       updatePrestamo,
-      getPrestamosByEmpleado
+      getPrestamosByEmpleado,
+      loadingPrestamos,
+      errorPrestamos,
+      deletePrestamo,
+      pagarCuotaPrestamo,
+      refreshPrestamos,
+      revertirUltimaCuotaPrestamo
     }}>
       {children}
     </DataContext.Provider>

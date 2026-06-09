@@ -90,6 +90,7 @@ function getPermissionsByRole(role: string): Permission[] {
         { module: 'empleados', actions: ['read', 'write', 'delete', 'admin'] as const },
         { module: 'empresas', actions: ['read', 'write', 'delete', 'admin'] as const },
         { module: 'beneficios', actions: ['read', 'write', 'delete', 'admin'] as const },
+        { module: 'prestamos', actions: ['read', 'write', 'delete', 'admin'] as const },
         { module: 'reportes', actions: ['read', 'write', 'admin'] as const },
         { module: 'configuracion', actions: ['read', 'write', 'admin'] as const }
       ];
@@ -98,14 +99,16 @@ function getPermissionsByRole(role: string): Permission[] {
         { module: 'empleados', actions: ['read'] as const },
         { module: 'empresas', actions: ['read'] as const },
         { module: 'beneficios', actions: ['read', 'write'] as const },
+        { module: 'prestamos', actions: ['read', 'write'] as const },
         { module: 'reportes', actions: ['read', 'write'] as const },
         { module: 'configuracion', actions: ['read'] as const }
       ];
     case 'secretaria':
       return [
-        { module: 'empleados', actions: ['read', 'write'] as const },
-        { module: 'empresas', actions: ['read', 'write'] as const },
-        { module: 'beneficios', actions: ['read', 'write'] as const },
+        { module: 'empleados', actions: ['read'] as const },
+        { module: 'empresas', actions: ['read'] as const },
+        { module: 'beneficios', actions: ['read'] as const },
+        { module: 'prestamos', actions: ['read'] as const },
         { module: 'reportes', actions: ['read'] as const },
         { module: 'configuracion', actions: ['read'] as const }
       ];
@@ -114,6 +117,7 @@ function getPermissionsByRole(role: string): Permission[] {
         { module: 'empleados', actions: ['read'] as const },
         { module: 'empresas', actions: ['read'] as const },
         { module: 'beneficios', actions: ['read'] as const },
+        { module: 'prestamos', actions: ['read'] as const },
         { module: 'reportes', actions: ['read'] as const },
         { module: 'configuracion', actions: ['read', 'write', 'admin'] as const }
       ];

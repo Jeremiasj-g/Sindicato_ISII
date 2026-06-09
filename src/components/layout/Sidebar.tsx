@@ -6,7 +6,8 @@ import {
   FileText, 
   Settings, 
   ChevronLeft,
-  Building2
+  Building2,
+  DollarSign
 } from 'lucide-react';
 import { ActivePage } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ const menuItems = [
   { id: 'empleados', label: 'Empleados', icon: Users, module: 'empleados' },
   { id: 'empresas', label: 'Empresas', icon: Building2, module: 'empresas' },
   { id: 'beneficios', label: 'Beneficios', icon: Gift, module: 'beneficios' },
+  { id: 'prestamos', label: 'Préstamos', icon: DollarSign, module: 'prestamos' },
   { id: 'reportes', label: 'Reportes', icon: FileText, module: 'reportes' },
   { id: 'configuracion', label: 'Configuración', icon: Settings, module: 'configuracion' }
 ];

@@ -122,3 +122,20 @@ export interface ReporteFiltro {
   operador: 'igual' | 'contiene' | 'mayor_que' | 'menor_que' | 'entre';
   valor: string | number | Date;
 }
+
+export interface Prestamo {
+  id: string;
+  empleadoId: string;
+  monto: number;
+  interesPorcentaje: number;
+  totalConInteres: number;
+  cuotas: number;
+  cuotasPagadas: number;
+  cuotasRestantes: number;
+  montoCuota: number;
+  fechaOtorgamiento: string;
+  fechaFin: string;
+  estado: 'activo' | 'finalizado' | 'moroso';
+  activo: boolean;
+  observaciones?: string;
+}

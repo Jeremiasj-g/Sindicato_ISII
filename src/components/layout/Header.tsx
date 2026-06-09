@@ -11,6 +11,7 @@ interface HeaderProps {
 const pageNames = {
   dashboard: 'Dashboard',
   empleados: 'Gestión de Empleados',
+  empresas: 'Gestión de Empresas',
   beneficios: 'Beneficios y Asistencias',
   reportes: 'Reportes y Estadísticas',
   configuracion: 'Configuración del Sistema'

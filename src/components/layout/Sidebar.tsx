@@ -21,6 +21,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, module: 'dashboard' },
   { id: 'empleados', label: 'Empleados', icon: Users, module: 'empleados' },
+  { id: 'empresas', label: 'Empresas', icon: Building2, module: 'empresas' },
   { id: 'beneficios', label: 'Beneficios', icon: Gift, module: 'beneficios' },
   { id: 'reportes', label: 'Reportes', icon: FileText, module: 'reportes' },
   { id: 'configuracion', label: 'Configuración', icon: Settings, module: 'configuracion' }

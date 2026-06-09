@@ -21,6 +21,11 @@ export interface Empleado {
   updatedAt: string;
 }
 
+export interface Empresa {
+  id: string;
+  nombre: string;
+}
+
 export interface Familiar {
   id: string;
   empleadoId: string;

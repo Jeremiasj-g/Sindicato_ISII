@@ -9,8 +9,9 @@ import { BeneficiosPage } from './components/pages/BeneficiosPage';
 import { ReportesPage } from './components/pages/ReportesPage';
 import { ConfiguracionPage } from './components/pages/ConfiguracionPage';
 import { DataProvider } from './context/DataContext';
+import { EmpresasPage } from './components/pages/EmpresasPage'
 
-export type ActivePage = 'dashboard' | 'empleados' | 'beneficios' | 'reportes' | 'configuracion';
+export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'reportes' | 'configuracion';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -38,6 +39,8 @@ function AppContent() {
         return <Dashboard />;
       case 'empleados':
         return <EmpleadosPage />;
+      case 'empresas':
+        return <EmpresasPage />
       case 'beneficios':
         return <BeneficiosPage />;
       case 'reportes':
@@ -52,14 +55,14 @@ function AppContent() {
   return (
     <DataProvider>
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar 
+        <Sidebar
           activePage={activePage}
           setActivePage={setActivePage}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
-          <Header 
+          <Header
             onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
             activePage={activePage}
           />

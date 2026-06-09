@@ -39,7 +39,26 @@ export interface Familiar {
   esEstudiante: boolean;
 }
 
+export interface TipoBeneficio {
+  id: string;
+  nombre: string;
+  categoria?: string;
+}
+
 export interface Beneficio {
+  id: string;
+  empleadoId: string;
+  tipo: string;
+  descripcion: string;
+  monto: number;
+  fecha: string;
+  estado: 'pendiente' | 'aprobado' | 'entregado' | 'rechazado';
+  observaciones?: string;
+  facturas: Factura[];
+  beneficiario?: string;
+}
+
+/* export interface Beneficio {
   id: string;
   empleadoId: string;
   tipo: 'voucher_escolar' | 'ayuda_universitaria' | 'premio_evento' | 'asistencia_salud';
@@ -50,7 +69,7 @@ export interface Beneficio {
   observaciones?: string;
   facturas: Factura[];
   beneficiario?: string; // Para casos donde el beneficio es para un familiar
-}
+} */
 
 export interface Prestamo {
   id: string;

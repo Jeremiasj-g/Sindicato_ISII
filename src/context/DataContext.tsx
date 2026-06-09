@@ -6,6 +6,14 @@ import {
   getAllEmpleados as getAllEmpleadosController,
   updateEmpleado as updateEmpleadoController
 } from '../lib/controllers/empleado.controller'
+
+import {
+  createBeneficio as createBeneficioController,
+  getAllBeneficios as getAllBeneficiosController,
+  updateBeneficio as updateBeneficioController,
+  deleteBeneficio as deleteBeneficioController
+} from '../lib/controllers/beneficio.controller'
+
 import {
   getFamiliaresByEmpleadoId,
   replaceGrupoFamiliar
@@ -28,8 +36,12 @@ interface DataContextType {
   refreshEmpleados: () => Promise<void>
   getEmpleadoById: (id: string) => Empleado | undefined
   searchEmpleados: (query: string) => Empleado[]
-  addBeneficio: (beneficio: Beneficio) => void
-  updateBeneficio: (id: string, beneficio: Partial<Beneficio>) => void
+  loadingBeneficios: boolean
+  errorBeneficios: string | null
+  addBeneficio: (beneficio: Beneficio) => Promise<MutationResult>
+  updateBeneficio: (id: string, beneficio: Partial<Beneficio>) => Promise<MutationResult>
+  deleteBeneficio: (id: string) => Promise<MutationResult>
+  refreshBeneficios: () => Promise<void>
   getBeneficiosByEmpleado: (empleadoId: string) => Beneficio[]
   addPrestamo: (prestamo: Prestamo) => void
   updatePrestamo: (id: string, prestamo: Partial<Prestamo>) => void
@@ -61,6 +73,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([])
   const [loadingEmpleados, setLoadingEmpleados] = useState(true)
   const [errorEmpleados, setErrorEmpleados] = useState<string | null>(null)
+  const [loadingBeneficios, setLoadingBeneficios] = useState(true)
+  const [errorBeneficios, setErrorBeneficios] = useState<string | null>(null)
 
   const refreshEmpleados = async () => {
     setLoadingEmpleados(true)
@@ -82,6 +96,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshEmpleados()
+    void refreshBeneficios()
   }, [])
 
   const addEmpleado = async (empleado: Empleado): Promise<MutationResult> => {
@@ -152,11 +167,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEmpleados((prev) => prev.map((emp) => (
       emp.id === id
         ? {
-            ...emp,
-            ...data,
-            grupoFamiliar,
-            updatedAt: new Date().toISOString()
-          }
+          ...emp,
+          ...data,
+          grupoFamiliar,
+          updatedAt: new Date().toISOString()
+        }
         : emp
     )))
 
@@ -179,10 +194,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEmpleados((prev) => prev.map((emp) => (
       emp.id === id
         ? {
-            ...emp,
-            estadoLaboral: 'inactivo',
-            updatedAt: new Date().toISOString()
-          }
+          ...emp,
+          estadoLaboral: 'inactivo',
+          updatedAt: new Date().toISOString()
+        }
         : emp
     )))
 
@@ -209,14 +224,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  const addBeneficio = (beneficio: Beneficio) => {
-    setBeneficios((prev) => [...prev, beneficio])
+  const refreshBeneficios = async () => {
+    setLoadingBeneficios(true)
+    setErrorBeneficios(null)
+
+    const { data, error } = await getAllBeneficiosController()
+
+    if (error) {
+      setErrorBeneficios(error)
+      setBeneficios([])
+      setLoadingBeneficios(false)
+      return
+    }
+
+    setBeneficios(data)
+    setLoadingBeneficios(false)
   }
 
-  const updateBeneficio = (id: string, updatedBeneficio: Partial<Beneficio>) => {
+  const addBeneficio = async (beneficio: Beneficio): Promise<MutationResult> => {
+    const { data, error } = await createBeneficioController(beneficio)
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo crear el beneficio.'
+      }
+    }
+
+    setBeneficios((prev) => [data, ...prev])
+
+    return {
+      success: true,
+      error: null
+    }
+  }
+
+  const updateBeneficio = async (
+    id: string,
+    updatedBeneficio: Partial<Beneficio>
+  ): Promise<MutationResult> => {
+    const { data, error } = await updateBeneficioController(Number(id), updatedBeneficio)
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo actualizar el beneficio.'
+      }
+    }
+
     setBeneficios((prev) => prev.map((ben) =>
-      ben.id === id ? { ...ben, ...updatedBeneficio } : ben
+      ben.id === id ? data : ben
     ))
+
+    return {
+      success: true,
+      error: null
+    }
+  }
+
+  const deleteBeneficio = async (id: string): Promise<MutationResult> => {
+    const { success, error } = await deleteBeneficioController(Number(id))
+
+    if (!success) {
+      return {
+        success: false,
+        error: error ?? 'No se pudo eliminar el beneficio.'
+      }
+    }
+
+    setBeneficios((prev) => prev.filter((ben) => ben.id !== id))
+
+    return {
+      success: true,
+      error: null
+    }
   }
 
   const getBeneficiosByEmpleado = (empleadoId: string): Beneficio[] => {
@@ -250,6 +331,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refreshEmpleados,
       getEmpleadoById,
       searchEmpleados,
+      loadingBeneficios,
+      errorBeneficios,
+      deleteBeneficio,
+      refreshBeneficios,
       addBeneficio,
       updateBeneficio,
       getBeneficiosByEmpleado,

@@ -2,3 +2,5 @@
 export * from './empleado.controller'
 export * from './familiar.controller'
 export * from './empresa.controller'
+export * from './beneficio.controller'
+export * from './tipo-beneficio.controller'

@@ -1,18 +1,48 @@
 import React, { useState } from 'react';
-import { Plus, Filter, Download, Calendar, DollarSign, FileText, Eye, Edit, Check, X } from 'lucide-react';
+import {
+  Plus,
+  Filter,
+  Download,
+  Calendar,
+  DollarSign,
+  FileText,
+  Eye,
+  Edit,
+  Check,
+  X,
+  RotateCcw
+} from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { Beneficio } from '../../types';
+import { Beneficio, TipoBeneficio } from '../../types';
 import { BeneficioModal } from '../modals/BeneficioModal';
+import { getAllTiposBeneficio } from '../../lib/controllers/tipo-beneficio.controller';
 
 export function BeneficiosPage() {
-  const { beneficios, empleados, updateBeneficio } = useData();
+  const {
+    beneficios,
+    empleados,
+    updateBeneficio,
+    loadingBeneficios,
+    errorBeneficios
+  } = useData();
+
   const [showModal, setShowModal] = useState(false);
   const [selectedBeneficio, setSelectedBeneficio] = useState<Beneficio | null>(null);
   const [filterTipo, setFilterTipo] = useState<string>('todos');
   const [filterEstado, setFilterEstado] = useState<string>('todos');
+  const [tiposBeneficio, setTiposBeneficio] = useState<TipoBeneficio[]>([]);
+
+  React.useEffect(() => {
+    const loadTipos = async () => {
+      const { data } = await getAllTiposBeneficio();
+      setTiposBeneficio(data);
+    };
+
+    void loadTipos();
+  }, []);
 
   const filteredBeneficios = React.useMemo(() => {
-    return beneficios.filter(beneficio => {
+    return beneficios.filter((beneficio) => {
       const matchesTipo = filterTipo === 'todos' || beneficio.tipo === filterTipo;
       const matchesEstado = filterEstado === 'todos' || beneficio.estado === filterEstado;
       return matchesTipo && matchesEstado;
@@ -20,18 +50,13 @@ export function BeneficiosPage() {
   }, [beneficios, filterTipo, filterEstado]);
 
   const getEmpleadoName = (empleadoId: string) => {
-    const empleado = empleados.find(emp => emp.id === empleadoId);
+    const empleado = empleados.find((emp) => emp.id === empleadoId);
     return empleado ? `${empleado.nombre} ${empleado.apellido}` : 'Empleado no encontrado';
   };
 
   const getTipoLabel = (tipo: string) => {
-    const tipos = {
-      voucher_escolar: 'Voucher Escolar',
-      ayuda_universitaria: 'Ayuda Universitaria',
-      premio_evento: 'Premio por Evento',
-      asistencia_salud: 'Asistencia por Salud'
-    };
-    return tipos[tipo as keyof typeof tipos] || tipo;
+    const tipoBeneficio = tiposBeneficio.find((t) => t.id === tipo);
+    return tipoBeneficio?.nombre ?? tipo;
   };
 
   const getEstadoColor = (estado: string) => {
@@ -41,6 +66,7 @@ export function BeneficiosPage() {
       entregado: 'bg-blue-100 text-blue-800',
       rechazado: 'bg-red-100 text-red-800'
     };
+
     return colors[estado as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
@@ -54,31 +80,111 @@ export function BeneficiosPage() {
     setShowModal(true);
   };
 
+  const handleChangeEstadoBeneficio = async (
+    beneficioId: string,
+    estado: Beneficio['estado'],
+    errorMessage: string
+  ) => {
+    const result = await updateBeneficio(beneficioId, { estado });
+
+    if (!result.success) {
+      window.alert(result.error ?? errorMessage);
+    }
+  };
+
   const handleApprovedBeneficio = (beneficioId: string) => {
-    updateBeneficio(beneficioId, { estado: 'aprobado' });
+    void handleChangeEstadoBeneficio(
+      beneficioId,
+      'aprobado',
+      'No se pudo aprobar el beneficio.'
+    );
   };
 
   const handleRejectBeneficio = (beneficioId: string) => {
-    updateBeneficio(beneficioId, { estado: 'rechazado' });
+    void handleChangeEstadoBeneficio(
+      beneficioId,
+      'rechazado',
+      'No se pudo rechazar el beneficio.'
+    );
+  };
+
+  const handleResetBeneficio = (beneficioId: string) => {
+    void handleChangeEstadoBeneficio(
+      beneficioId,
+      'pendiente',
+      'No se pudo revertir el beneficio.'
+    );
+  };
+
+  const escapeCsvValue = (value: string | number | null | undefined) => {
+    const text = String(value ?? '');
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const handleExportBeneficios = () => {
+    const headers = [
+      'ID',
+      'Empleado',
+      'Tipo de beneficio',
+      'Descripcion',
+      'Monto',
+      'Fecha',
+      'Estado',
+      'Beneficiario',
+      'Observaciones',
+      'Cantidad de facturas'
+    ];
+
+    const rows = filteredBeneficios.map((beneficio) => [
+      beneficio.id,
+      getEmpleadoName(beneficio.empleadoId),
+      getTipoLabel(beneficio.tipo),
+      beneficio.descripcion,
+      beneficio.monto,
+      beneficio.fecha,
+      beneficio.estado,
+      beneficio.beneficiario ?? '',
+      beneficio.observaciones ?? '',
+      beneficio.facturas?.length ?? 0
+    ]);
+
+    const csvContent = [
+      headers.map(escapeCsvValue).join(';'),
+      ...rows.map((row) => row.map(escapeCsvValue).join(';'))
+    ].join('\n');
+
+    const blob = new Blob([`\uFEFF${csvContent}`], {
+      type: 'text/csv;charset=utf-8;'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+
+    link.href = url;
+    link.download = `beneficios_${today}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
   };
 
   const stats = {
     total: beneficios.length,
-    pendientes: beneficios.filter(b => b.estado === 'pendiente').length,
-    aprobados: beneficios.filter(b => b.estado === 'aprobado').length,
+    pendientes: beneficios.filter((b) => b.estado === 'pendiente').length,
+    aprobados: beneficios.filter((b) => b.estado === 'aprobado').length,
     montoTotal: beneficios
-      .filter(b => b.estado === 'aprobado' || b.estado === 'entregado')
+      .filter((b) => b.estado === 'aprobado' || b.estado === 'entregado')
       .reduce((sum, b) => sum + b.monto, 0)
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Beneficios y Asistencias</h2>
           <p className="text-gray-600">Gestiona vouchers, ayudas económicas y asistencias por salud</p>
         </div>
+
         <button
           onClick={handleAddBeneficio}
           className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -88,7 +194,12 @@ export function BeneficiosPage() {
         </button>
       </div>
 
-      {/* Estadísticas */}
+      {errorBeneficios && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+          {errorBeneficios}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
@@ -133,7 +244,6 @@ export function BeneficiosPage() {
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex items-center space-x-2">
@@ -144,10 +254,11 @@ export function BeneficiosPage() {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
             >
               <option value="todos">Todos los tipos</option>
-              <option value="voucher_escolar">Voucher Escolar</option>
-              <option value="ayuda_universitaria">Ayuda Universitaria</option>
-              <option value="premio_evento">Premio por Evento</option>
-              <option value="asistencia_salud">Asistencia por Salud</option>
+              {tiposBeneficio.map((tipo) => (
+                <option key={tipo.id} value={tipo.id}>
+                  {tipo.nombre}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -165,14 +276,17 @@ export function BeneficiosPage() {
             </select>
           </div>
 
-          <button className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors ml-auto">
+          <button
+            onClick={handleExportBeneficios}
+            disabled={filteredBeneficios.length === 0}
+            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors ml-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="h-4 w-4" />
             <span>Exportar</span>
           </button>
         </div>
       </div>
 
-      {/* Tabla de beneficios */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -187,6 +301,7 @@ export function BeneficiosPage() {
                 <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900">Acciones</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200">
               {filteredBeneficios.map((beneficio) => (
                 <tr key={beneficio.id} className="hover:bg-gray-50 transition-colors">
@@ -200,31 +315,37 @@ export function BeneficiosPage() {
                       )}
                     </div>
                   </td>
+
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-900">
                       {getTipoLabel(beneficio.tipo)}
                     </span>
                   </td>
+
                   <td className="px-6 py-4">
                     <p className="text-sm text-gray-900 max-w-xs truncate" title={beneficio.descripcion}>
                       {beneficio.descripcion}
                     </p>
                   </td>
+
                   <td className="px-6 py-4">
                     <span className="text-sm font-medium text-gray-900">
                       ${beneficio.monto.toLocaleString('es-AR')}
                     </span>
                   </td>
+
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-600">
-                      {new Date(beneficio.fecha).toLocaleDateString('es-AR')}
+                      {new Date(`${beneficio.fecha}T00:00:00`).toLocaleDateString('es-AR')}
                     </span>
                   </td>
+
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(beneficio.estado)}`}>
                       {beneficio.estado}
                     </span>
                   </td>
+
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <button
@@ -233,6 +354,7 @@ export function BeneficiosPage() {
                       >
                         <Eye className="h-4 w-4" />
                       </button>
+
                       <button
                         onClick={() => handleEditBeneficio(beneficio)}
                         className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
@@ -240,23 +362,35 @@ export function BeneficiosPage() {
                       >
                         <Edit className="h-4 w-4" />
                       </button>
-                      {beneficio.estado === 'pendiente' && (
-                        <>
-                          <button
-                            onClick={() => handleApprovedBeneficio(beneficio.id)}
-                            className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
-                            title="Aprobar"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleRejectBeneficio(beneficio.id)}
-                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                            title="Rechazar"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
+
+                      {beneficio.estado !== 'aprobado' && (
+                        <button
+                          onClick={() => handleApprovedBeneficio(beneficio.id)}
+                          className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                          title="Aprobar"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      {beneficio.estado !== 'rechazado' && (
+                        <button
+                          onClick={() => handleRejectBeneficio(beneficio.id)}
+                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          title="Rechazar"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      {beneficio.estado !== 'pendiente' && (
+                        <button
+                          onClick={() => handleResetBeneficio(beneficio.id)}
+                          className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+                          title="Revertir a pendiente"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -266,7 +400,13 @@ export function BeneficiosPage() {
           </table>
         </div>
 
-        {filteredBeneficios.length === 0 && (
+        {loadingBeneficios && (
+          <div className="text-center py-12 text-gray-500">
+            Cargando beneficios...
+          </div>
+        )}
+
+        {!loadingBeneficios && filteredBeneficios.length === 0 && (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No se encontraron beneficios</p>
@@ -274,7 +414,6 @@ export function BeneficiosPage() {
         )}
       </div>
 
-      {/* Modal para agregar/editar beneficio */}
       {showModal && (
         <BeneficioModal
           beneficio={selectedBeneficio}

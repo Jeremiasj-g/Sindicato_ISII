@@ -19,3 +19,6 @@ export * from './types/empresas.types'
 export * from './types/beneficios.types'
 export * from './types/prestamos.types'
 export * from './types/usuarios.types'
+
+// Facade export
+export * from './facades/prestamo.facade'

@@ -19,16 +19,7 @@ import {
   replaceGrupoFamiliar
 } from '../lib/controllers/familiar.controller'
 
-import {
-  createPrestamo as createPrestamoController,
-  getAllPrestamos as getAllPrestamosController,
-  updatePrestamo as updatePrestamoController,
-  deletePrestamo as deletePrestamoController,
-  pagarCuotaPrestamo as pagarCuotaPrestamoController,
-  revertirUltimaCuotaPrestamo as revertirUltimaCuotaPrestamoController
-} from '../lib/controllers/prestamo.controller'
-
-
+import { PrestamoFacade } from '../lib/facades/prestamo.facade'
 
 type MutationResult = {
   success: boolean
@@ -328,11 +319,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   // Prestamos
+  // Prestamos usando patrón Fachada
   const refreshPrestamos = async () => {
     setLoadingPrestamos(true)
     setErrorPrestamos(null)
 
-    const { data, error } = await getAllPrestamosController()
+    const { data, error } = await PrestamoFacade.listar()
 
     if (error) {
       setErrorPrestamos(error)
@@ -346,7 +338,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   const addPrestamo = async (prestamo: Prestamo): Promise<MutationResult> => {
-    const { data, error } = await createPrestamoController(prestamo)
+    const { data, error } = await PrestamoFacade.crear(prestamo)
 
     if (error || !data) {
       return {
@@ -367,7 +359,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     id: string,
     updatedPrestamo: Partial<Prestamo>
   ): Promise<MutationResult> => {
-    const { data, error } = await updatePrestamoController(Number(id), updatedPrestamo)
+    const { data, error } = await PrestamoFacade.actualizar(id, updatedPrestamo)
 
     if (error || !data) {
       return {
@@ -376,9 +368,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    setPrestamos((prev) => prev.map((pres) =>
-      pres.id === id ? data : pres
-    ))
+    setPrestamos((prev) =>
+      prev.map((prestamo) => (prestamo.id === id ? data : prestamo))
+    )
 
     return {
       success: true,
@@ -387,7 +379,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   const deletePrestamo = async (id: string): Promise<MutationResult> => {
-    const { success, error } = await deletePrestamoController(Number(id))
+    const { success, error } = await PrestamoFacade.eliminar(id)
 
     if (!success) {
       return {
@@ -396,7 +388,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    setPrestamos((prev) => prev.filter((pres) => pres.id !== id))
+    setPrestamos((prev) => prev.filter((prestamo) => prestamo.id !== id))
 
     return {
       success: true,
@@ -405,7 +397,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   const pagarCuotaPrestamo = async (id: string): Promise<MutationResult> => {
-    const { success, error } = await pagarCuotaPrestamoController(Number(id))
+    const { success, error } = await PrestamoFacade.pagarCuota(id)
 
     if (!success) {
       return {
@@ -422,22 +414,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const getPrestamosByEmpleado = (empleadoId: string): Prestamo[] => {
-    return prestamos.filter((pres) => pres.empleadoId === empleadoId)
-  }
-
   const revertirUltimaCuotaPrestamo = async (
     id: string
   ): Promise<MutationResult> => {
-    const { success, error } =
-      await revertirUltimaCuotaPrestamoController(
-        Number(id)
-      )
+    const { success, error } = await PrestamoFacade.revertirUltimoPago(id)
 
     if (!success) {
       return {
         success: false,
-        error
+        error: error ?? 'No se pudo revertir el último pago.'
       }
     }
 
@@ -447,6 +432,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       success: true,
       error: null
     }
+  }
+
+  const getPrestamosByEmpleado = (empleadoId: string): Prestamo[] => {
+    return PrestamoFacade.filtrarPorEmpleado(prestamos, empleadoId)
   }
 
   return (

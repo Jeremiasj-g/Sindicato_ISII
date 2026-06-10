@@ -16,8 +16,12 @@ import { useData } from '../../context/DataContext';
 import { Beneficio, TipoBeneficio } from '../../types';
 import { BeneficioModal } from '../modals/BeneficioModal';
 import { getAllTiposBeneficio } from '../../lib/controllers/tipo-beneficio.controller';
+import { useUser } from '../../context/UserContext';
 
 export function BeneficiosPage() {
+  const { canWrite } = useUser();
+  const puedeGestionar = canWrite('beneficios');
+
   const {
     beneficios,
     empleados,
@@ -185,13 +189,15 @@ export function BeneficiosPage() {
           <p className="text-gray-600">Gestiona vouchers, ayudas económicas y asistencias por salud</p>
         </div>
 
-        <button
-          onClick={handleAddBeneficio}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Nuevo Beneficio</span>
-        </button>
+        {puedeGestionar && (
+          <button
+            onClick={handleAddBeneficio}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nuevo Beneficio</span>
+          </button>
+        )}
       </div>
 
       {errorBeneficios && (
@@ -355,15 +361,17 @@ export function BeneficiosPage() {
                         <Eye className="h-4 w-4" />
                       </button>
 
-                      <button
-                        onClick={() => handleEditBeneficio(beneficio)}
-                        className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                      {puedeGestionar && (
+                        <button
+                          onClick={() => handleEditBeneficio(beneficio)}
+                          className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
 
-                      {beneficio.estado !== 'aprobado' && (
+                      {puedeGestionar && beneficio.estado !== 'aprobado' && (
                         <button
                           onClick={() => handleApprovedBeneficio(beneficio.id)}
                           className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
@@ -373,7 +381,7 @@ export function BeneficiosPage() {
                         </button>
                       )}
 
-                      {beneficio.estado !== 'rechazado' && (
+                      {puedeGestionar && beneficio.estado !== 'rechazado' && (
                         <button
                           onClick={() => handleRejectBeneficio(beneficio.id)}
                           className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
@@ -383,7 +391,7 @@ export function BeneficiosPage() {
                         </button>
                       )}
 
-                      {beneficio.estado !== 'pendiente' && (
+                      {puedeGestionar && beneficio.estado !== 'pendiente' && (
                         <button
                           onClick={() => handleResetBeneficio(beneficio.id)}
                           className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"

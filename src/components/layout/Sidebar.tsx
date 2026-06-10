@@ -10,7 +10,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { ActivePage } from '../../App';
-import { useAuth } from '../../context/AuthContext';
+import { useUser } from '../../context/UserContext';
 
 interface SidebarProps {
   activePage: ActivePage;
@@ -30,17 +30,9 @@ const menuItems = [
 ];
 
 export function Sidebar({ activePage, setActivePage, isCollapsed, onToggleCollapse }: SidebarProps) {
-  const { user } = useAuth();
+  const { canRead } = useUser();
 
-  const hasPermission = (module: string, action: string): boolean => {
-    if (!user) return false;
-    const modulePermission = user.permissions.find(p => p.module === module);
-    return modulePermission?.actions.includes(action as any) || false;
-  };
-
-  const filteredMenuItems = menuItems.filter(item => 
-    hasPermission(item.module, 'read')
-  );
+  const filteredMenuItems = menuItems.filter(item => canRead(item.module));
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-blue-900 text-white transition-all duration-300 z-30 ${

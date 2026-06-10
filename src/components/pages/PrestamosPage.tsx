@@ -12,8 +12,12 @@ import type { Prestamo } from '../../types'
 import { useData } from '../../context/DataContext'
 import { PrestamoModal } from '../modals/PrestamoModal'
 import { exportToCSV, preparePrestamosForExport } from '../../utils/exportUtils'
+import { useUser } from '../../context/UserContext'
 
 export function PrestamosPage() {
+    const { canWrite } = useUser()
+    const puedeGestionar = canWrite('prestamos')
+
     const {
         prestamos,
         empleados,
@@ -125,13 +129,15 @@ export function PrestamosPage() {
                     </p>
                 </div>
 
-                <button
-                    onClick={handleAddPrestamo}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    <span>Nuevo Préstamo</span>
-                </button>
+                {puedeGestionar && (
+                    <button
+                        onClick={handleAddPrestamo}
+                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Nuevo Préstamo</span>
+                    </button>
+                )}
             </div>
 
             {errorPrestamos && (
@@ -232,7 +238,7 @@ export function PrestamosPage() {
 
                                     <td className="px-6 py-4 text-sm text-gray-900 flex gap-2">
                                         {prestamo.cuotasPagadas}/{prestamo.cuotas}
-                                        {prestamo.cuotasPagadas > 0 && (
+                                        {puedeGestionar && prestamo.cuotasPagadas > 0 && (
                                             <button
                                                 onClick={() =>
                                                     void handleRevertirPago(prestamo)
@@ -261,7 +267,7 @@ export function PrestamosPage() {
 
                                     <td className="px-6 py-4">
                                         <div className="flex items-center space-x-2">
-                                            {prestamo.estado === 'activo' && (
+                                            {puedeGestionar && prestamo.estado === 'activo' && (
                                                 <button
                                                     onClick={() => void handlePagarCuota(prestamo)}
                                                     className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
@@ -271,13 +277,15 @@ export function PrestamosPage() {
                                                 </button>
                                             )}
 
-                                            <button
-                                                onClick={() => handleEditPrestamo(prestamo)}
-                                                className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded"
-                                                title="Editar"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </button>
+                                            {puedeGestionar && (
+                                                <button
+                                                    onClick={() => handleEditPrestamo(prestamo)}
+                                                    className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded"
+                                                    title="Editar"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

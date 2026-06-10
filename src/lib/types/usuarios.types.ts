@@ -29,7 +29,6 @@ export interface CreateUsuarioInput {
   username: string
   nombre: string
   email: string
-  password: string
   role: User['role']
   isActive?: boolean
 }

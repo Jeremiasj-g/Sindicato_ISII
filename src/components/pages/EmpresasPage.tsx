@@ -8,8 +8,13 @@ import {
   updateEmpresa
 } from '../../lib/controllers/empresa.controller'
 import { EmpresaModal } from '../modals/EmpresaModal'
+import { useUser } from '../../context/UserContext'
 
 export function EmpresasPage() {
+  const { canWrite, canDelete } = useUser()
+  const puedeCrearEditar = canWrite('empresas')
+  const puedeEliminar = canDelete('empresas')
+
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -98,13 +103,15 @@ export function EmpresasPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleAddEmpresa}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Nueva Empresa</span>
-        </button>
+        {puedeCrearEditar && (
+          <button
+            onClick={handleAddEmpresa}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nueva Empresa</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -167,21 +174,25 @@ export function EmpresasPage() {
 
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditEmpresa(empresa)}
-                        className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                      {puedeCrearEditar && (
+                        <button
+                          onClick={() => handleEditEmpresa(empresa)}
+                          className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={() => void handleDeleteEmpresa(empresa)}
-                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {puedeEliminar && (
+                        <button
+                          onClick={() => void handleDeleteEmpresa(empresa)}
+                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

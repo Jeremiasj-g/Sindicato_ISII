@@ -5,6 +5,7 @@ import {
     validarUsuario
 } from '../../utils/usuarioUtils'
 import { supabase } from '../config/supabase'
+import { getPermissionsByRole, normalizeRole } from '../../utils/permissions'
 import type {
     CreateUsuarioInput,
     RolDB,
@@ -14,62 +15,6 @@ import type {
     UsuarioUpdate,
     UsuarioWithRolDB
 } from '../types/usuarios.types'
-
-const getPermissionsByRole = (role: User['role']) => {
-    switch (role) {
-        case 'administrador':
-            return [
-                { module: 'empleados', actions: ['read', 'write', 'delete', 'admin'] as const },
-                { module: 'empresas', actions: ['read', 'write', 'delete', 'admin'] as const },
-                { module: 'beneficios', actions: ['read', 'write', 'delete', 'admin'] as const },
-                { module: 'prestamos', actions: ['read', 'write', 'delete', 'admin'] as const },
-                { module: 'reportes', actions: ['read', 'write', 'admin'] as const },
-                { module: 'configuracion', actions: ['read', 'write', 'admin'] as const }
-            ]
-        case 'secretario_hacienda':
-            return [
-                { module: 'empleados', actions: ['read'] as const },
-                { module: 'empresas', actions: ['read'] as const },
-                { module: 'beneficios', actions: ['read', 'write'] as const },
-                { module: 'prestamos', actions: ['read', 'write'] as const },
-                { module: 'reportes', actions: ['read', 'write'] as const },
-                { module: 'configuracion', actions: ['read'] as const }
-            ]
-        case 'secretaria':
-            return [
-                { module: 'empleados', actions: ['read', 'write'] as const },
-                { module: 'empresas', actions: ['read', 'write'] as const },
-                { module: 'beneficios', actions: ['read', 'write'] as const },
-                { module: 'prestamos', actions: ['read', 'write'] as const },
-                { module: 'reportes', actions: ['read'] as const },
-                { module: 'configuracion', actions: ['read'] as const }
-            ]
-        case 'desarrollador':
-            return [
-                { module: 'empleados', actions: ['read'] as const },
-                { module: 'empresas', actions: ['read'] as const },
-                { module: 'beneficios', actions: ['read'] as const },
-                { module: 'prestamos', actions: ['read'] as const },
-                { module: 'reportes', actions: ['read'] as const },
-                { module: 'configuracion', actions: ['read', 'write', 'admin'] as const }
-            ]
-        default:
-            return []
-    }
-}
-
-const normalizeRole = (role?: string | null): User['role'] => {
-    if (
-        role === 'administrador' ||
-        role === 'secretario_hacienda' ||
-        role === 'secretaria' ||
-        role === 'desarrollador'
-    ) {
-        return role
-    }
-
-    return 'secretaria'
-}
 
 export const mapUsuarioDBToUser = (usuario: UsuarioWithRolDB): User => {
     const role = normalizeRole(usuario.roles?.nombre)

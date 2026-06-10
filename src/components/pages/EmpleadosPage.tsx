@@ -3,8 +3,13 @@ import { Search, Plus, Filter, Download, Edit, Eye, Trash2, Users } from 'lucide
 import { useData } from '../../context/DataContext'
 import { Empleado } from '../../types'
 import { EmpleadoModal } from '../modals/EmpleadoModal'
+import { useUser } from '../../context/UserContext'
 
 export function EmpleadosPage() {
+  const { canWrite, canDelete } = useUser()
+  const puedeCrearEditar = canWrite('empleados')
+  const puedeEliminar = canDelete('empleados')
+
   const {
     empleados,
     searchEmpleados,
@@ -65,13 +70,15 @@ export function EmpleadosPage() {
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Empleados</h2>
           <p className="text-gray-600">Administra empleados, afiliados y sus datos familiares</p>
         </div>
-        <button
-          onClick={handleAddEmpleado}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Nuevo Empleado</span>
-        </button>
+        {puedeCrearEditar && (
+          <button
+            onClick={handleAddEmpleado}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nuevo Empleado</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -182,20 +189,24 @@ export function EmpleadosPage() {
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button
-                        onClick={() => handleEditEmpleado(empleado)}
-                        className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => void handleDeleteEmpleado(empleado)}
-                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {puedeCrearEditar && (
+                        <button
+                          onClick={() => handleEditEmpleado(empleado)}
+                          className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
+                      {puedeEliminar && (
+                        <button
+                          onClick={() => void handleDeleteEmpleado(empleado)}
+                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

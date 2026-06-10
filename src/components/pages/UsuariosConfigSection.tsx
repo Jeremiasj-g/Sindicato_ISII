@@ -80,7 +80,6 @@ export function UsuariosConfigSection({ canAdmin }: UsuariosConfigSectionProps) 
             username: user.username,
             nombre: user.nombre,
             email: user.email ?? '',
-            password: '',
             role: user.role,
             isActive: user.isActive
         })

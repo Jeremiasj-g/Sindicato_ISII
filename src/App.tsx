@@ -13,6 +13,7 @@ import { EmpresasPage } from './components/pages/EmpresasPage'
 import { PrestamosPage } from './components/pages/PrestamosPage'
 import { PerfilPage } from './components/pages/PerfilPage'
 import { SetPasswordPage } from './components/auth/SetPasswordPage'
+import { UserProvider } from './context/UserContext'
 
 export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'prestamos' | 'reportes' | 'configuracion' | 'perfil';
 
@@ -32,12 +33,12 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return <AuthForm onSuccess={() => window.location.reload()} />;
-  }
-
   if (window.location.pathname === '/set-password') {
     return <SetPasswordPage />
+  }
+
+  if (!user) {
+    return <AuthForm onSuccess={() => window.location.reload()} />;
   }
 
   const renderPage = () => {
@@ -64,7 +65,8 @@ function AppContent() {
   };
 
   return (
-    <DataProvider>
+    <UserProvider>
+      <DataProvider>
       <div className="min-h-screen bg-gray-50 flex">
         <Sidebar
           activePage={activePage}
@@ -83,7 +85,8 @@ function AppContent() {
           </main>
         </div>
       </div>
-    </DataProvider>
+      </DataProvider>
+    </UserProvider>
   );
 }
 

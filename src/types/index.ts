@@ -71,19 +71,6 @@ export interface Beneficio {
   beneficiario?: string; // Para casos donde el beneficio es para un familiar
 } */
 
-export interface Prestamo {
-  id: string;
-  empleadoId: string;
-  monto: number;
-  cuotas: number;
-  cuotasPagadas: number;
-  cuotasRestantes: number;
-  montoCuota: number;
-  fechaOtorgamiento: string;
-  estado: 'activo' | 'finalizado' | 'moroso';
-  observaciones?: string;
-}
-
 export interface Factura {
   id: string;
   beneficioId: string;

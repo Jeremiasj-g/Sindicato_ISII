@@ -11,8 +11,10 @@ import { ConfiguracionPage } from './components/pages/ConfiguracionPage';
 import { DataProvider } from './context/DataContext';
 import { EmpresasPage } from './components/pages/EmpresasPage'
 import { PrestamosPage } from './components/pages/PrestamosPage'
+import { PerfilPage } from './components/pages/PerfilPage'
+import { SetPasswordPage } from './components/auth/SetPasswordPage'
 
-export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'prestamos' | 'reportes' | 'configuracion';
+export type ActivePage = 'dashboard' | 'empleados' | 'empresas' | 'beneficios' | 'prestamos' | 'reportes' | 'configuracion' | 'perfil';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -34,6 +36,10 @@ function AppContent() {
     return <AuthForm onSuccess={() => window.location.reload()} />;
   }
 
+  if (window.location.pathname === '/set-password') {
+    return <SetPasswordPage />
+  }
+
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
@@ -50,6 +56,8 @@ function AppContent() {
         return <ReportesPage />;
       case 'configuracion':
         return <ConfiguracionPage />;
+      case 'perfil':
+        return <PerfilPage />
       default:
         return <Dashboard />;
     }
@@ -68,6 +76,7 @@ function AppContent() {
           <Header
             onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
             activePage={activePage}
+            onPageChange={setActivePage}
           />
           <main className="flex-1 p-6">
             {renderPage()}

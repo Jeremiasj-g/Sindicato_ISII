@@ -11,9 +11,11 @@ export * from './controllers/empresa.controller'
 export * from './controllers/beneficio.controller'
 export * from './controllers/tipo-beneficio.controller'
 export * from './controllers/prestamo.controller'
+export * from './controllers/usuario.controller'
 
 // Type exports
 export * from './types/database.types'
 export * from './types/empresas.types'
 export * from './types/beneficios.types'
 export * from './types/prestamos.types'
+export * from './types/usuarios.types'

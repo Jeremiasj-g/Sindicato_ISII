@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Settings, Users, Shield, Database, Download, Upload, Save } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { User } from '../../types';
+import { UsuariosConfigSection } from './UsuariosConfigSection'
 
 export function ConfiguracionPage() {
   const { user: currentUser } = useAuth();
@@ -112,89 +113,7 @@ export function ConfiguracionPage() {
 
         <div className="p-6">
           {activeTab === 'usuarios' && (
-            <div className="space-y-6">
-              {/* Crear nuevo usuario */}
-              {hasPermission('configuracion', 'admin') && (
-                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Crear Nuevo Usuario</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre de Usuario
-                      </label>
-                      <input
-                        type="text"
-                        value={newUser.username}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, username: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                        placeholder="usuario123"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre Completo
-                      </label>
-                      <input
-                        type="text"
-                        value={newUser.nombre}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, nombre: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                        placeholder="Juan Pérez"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Rol
-                      </label>
-                      <select
-                        value={newUser.role}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as User['role'] }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                      >
-                        {roles.map(role => (
-                          <option key={role.value} value={role.value}>{role.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleCreateUser}
-                    className="mt-4 flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>Crear Usuario</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Lista de usuarios */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Usuarios del Sistema</h3>
-                <div className="space-y-4">
-                  {mockUsers.map(user => (
-                    <div key={user.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{user.nombre}</h4>
-                        <p className="text-sm text-gray-500">@{user.username}</p>
-                        <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.isActive ? 'Activo' : 'Inactivo'}
-                        </span>
-                        {hasPermission('configuracion', 'admin') && (
-                          <button className="text-blue-600 hover:text-blue-800 text-sm">
-                            Editar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <UsuariosConfigSection canAdmin={hasPermission('configuracion', 'admin')} />
           )}
 
           {activeTab === 'sistema' && (

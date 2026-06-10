@@ -98,6 +98,7 @@ export interface User {
   id: string;
   username: string;
   nombre: string;
+  email?: string;
   role: 'administrador' | 'secretario_hacienda' | 'secretaria' | 'desarrollador';
   permissions: Permission[];
   isActive: boolean;

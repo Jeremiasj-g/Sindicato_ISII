@@ -1,4 +1,3 @@
-
 import { Menu, LogOut, User, Bell } from 'lucide-react';
 import { ActivePage } from '../../App';
 import { useAuth } from '../../context/AuthContext';
@@ -6,19 +5,25 @@ import { useAuth } from '../../context/AuthContext';
 interface HeaderProps {
   onToggleSidebar: () => void;
   activePage: ActivePage;
+  onPageChange: (page: ActivePage) => void;
 }
 
-const pageNames = {
+const pageNames: Record<string, string> = {
   dashboard: 'Dashboard',
   empleados: 'Gestión de Empleados',
   empresas: 'Gestión de Empresas',
   beneficios: 'Beneficios y Asistencias',
   prestamos: 'Gestión de Préstamos',
   reportes: 'Reportes y Estadísticas',
-  configuracion: 'Configuración del Sistema'
+  configuracion: 'Configuración del Sistema',
+  perfil: 'Mi Perfil'
 };
 
-export function Header({ onToggleSidebar, activePage }: HeaderProps) {
+export function Header({
+  onToggleSidebar,
+  activePage,
+  onPageChange
+}: HeaderProps) {
   const { user: currentUser, signOut } = useAuth();
 
   const handleSignOut = async () => {
@@ -35,16 +40,18 @@ export function Header({ onToggleSidebar, activePage }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
+
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
-              {pageNames[activePage]}
+              {pageNames[activePage] || 'Sistema'}
             </h1>
+
             <p className="text-sm text-gray-500">
-              {new Date().toLocaleDateString('es-AR', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              {new Date().toLocaleDateString('es-AR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}
             </p>
           </div>
@@ -53,21 +60,31 @@ export function Header({ onToggleSidebar, activePage }: HeaderProps) {
         <div className="flex items-center space-x-4">
           <button className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors relative">
             <Bell className="h-5 w-5" />
+
             <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
           </button>
-          
+
           <div className="flex items-center space-x-3 border-l border-gray-200 pl-4">
-            <div className="flex items-center space-x-2">
+            <button
+              onClick={() => onPageChange('perfil')}
+              className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
+            >
               <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
-              <div className="text-sm">
-                <p className="font-medium text-gray-900">{currentUser?.nombre}</p>
-                <p className="text-gray-500 capitalize">{currentUser?.role.replace('_', ' ')}</p>
+
+              <div className="text-left text-sm">
+                <p className="font-medium text-gray-900">
+                  {currentUser?.nombre}
+                </p>
+
+                <p className="text-gray-500 capitalize">
+                  {currentUser?.role.replace('_', ' ')}
+                </p>
               </div>
-            </div>
-            
-            <button 
+            </button>
+
+            <button
               onClick={handleSignOut}
               className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
               title="Cerrar sesión"

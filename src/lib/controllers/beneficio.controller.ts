@@ -165,31 +165,39 @@ export const replaceFacturasByBeneficioId = async (
 export const createBeneficio = async (beneficioData: CreateBeneficioInput) => {
   try {
     const validationError = validarBeneficio(beneficioData)
+
     if (validationError) throw new Error(validationError)
 
     const { data, error } = await supabase
-      .from('beneficios')
-      .insert(mapBeneficioToBeneficioInsert(beneficioData))
-      .select('*')
-      .single()
+      .rpc('sp_crear_beneficio', {
+        p_empleado_id: Number(beneficioData.empleadoId),
+        p_tipo_beneficio_id: Number(beneficioData.tipo),
+        p_monto: Number(beneficioData.monto),
+        p_descripcion: beneficioData.descripcion,
+        p_fecha_otorgado: beneficioData.fechaOtorgamiento,
+        p_estado: beneficioData.estado ?? 'pendiente',
+        p_beneficiario: beneficioData.beneficiario ?? null,
+        p_observaciones: beneficioData.observaciones ?? null
+      })
 
     if (error) throw error
 
-    await replaceFacturasByBeneficioId(data.id, beneficioData.facturas ?? [])
-
-    const [tiposMap, facturas] = await Promise.all([
-      getTiposBeneficioMap(),
-      getFacturasByBeneficioId(data.id)
-    ])
-
     return {
-      data: mapBeneficioDBToBeneficio(data, tiposMap, facturas),
+      data: mapBeneficioDBToBeneficio(data as BeneficioDB),
       error: null
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error al crear el beneficio'
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Error al crear beneficio'
+
     console.error('Error creating beneficio:', error)
-    return { data: null, error: message }
+
+    return {
+      data: null,
+      error: message
+    }
   }
 }
 
@@ -221,52 +229,104 @@ export const getAllBeneficios = async () => {
 }
 
 export const updateBeneficio = async (
-  id: number,
+  id: string,
   beneficioData: UpdateBeneficioInput
 ) => {
   try {
     const { data, error } = await supabase
-      .from('beneficios')
-      .update(mapBeneficioToBeneficioUpdate(beneficioData))
-      .eq('id', id)
-      .select('*')
-      .single()
+      .rpc('sp_actualizar_beneficio', {
+        p_id: Number(id),
+        p_empleado_id: beneficioData.empleadoId !== undefined
+          ? Number(beneficioData.empleadoId)
+          : null,
+        p_tipo_beneficio_id: beneficioData.tipo !== undefined
+          ? Number(beneficioData.tipo)
+          : null,
+        p_monto: beneficioData.monto !== undefined
+          ? Number(beneficioData.monto)
+          : null,
+        p_descripcion: beneficioData.descripcion ?? null,
+        p_fecha_otorgado: beneficioData.fechaOtorgamiento ?? null,
+        p_estado: beneficioData.estado ?? null,
+        p_beneficiario: beneficioData.beneficiario ?? null,
+        p_observaciones: beneficioData.observaciones ?? null
+      })
 
     if (error) throw error
 
-    if (beneficioData.facturas !== undefined) {
-      await replaceFacturasByBeneficioId(id, beneficioData.facturas)
-    }
-
-    const [tiposMap, facturas] = await Promise.all([
-      getTiposBeneficioMap(),
-      getFacturasByBeneficioId(id)
-    ])
-
     return {
-      data: mapBeneficioDBToBeneficio(data, tiposMap, facturas),
+      data: mapBeneficioDBToBeneficio(data as BeneficioDB),
       error: null
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error al actualizar el beneficio'
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Error al actualizar beneficio'
+
     console.error('Error updating beneficio:', error)
-    return { data: null, error: message }
+
+    return {
+      data: null,
+      error: message
+    }
   }
 }
 
-export const deleteBeneficio = async (id: number) => {
+export const cambiarEstadoBeneficio = async (
+  id: string,
+  estado: Beneficio['estado']
+) => {
   try {
-    const { error } = await supabase
-      .from('beneficios')
-      .delete()
-      .eq('id', id)
+    const { data, error } = await supabase
+      .rpc('sp_cambiar_estado_beneficio', {
+        p_id: Number(id),
+        p_estado: estado
+      })
 
     if (error) throw error
 
-    return { success: true, error: null }
+    return {
+      data: mapBeneficioDBToBeneficio(data as BeneficioDB),
+      error: null
+    }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error al eliminar el beneficio'
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Error al cambiar estado del beneficio'
+
+    return {
+      data: null,
+      error: message
+    }
+  }
+}
+
+export const deleteBeneficio = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('sp_eliminar_beneficio', {
+        p_id: Number(id)
+      })
+
+    if (error) throw error
+
+    return {
+      success: Boolean(data),
+      error: null
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Error al eliminar beneficio'
+
     console.error('Error deleting beneficio:', error)
-    return { success: false, error: message }
+
+    return {
+      success: false,
+      error: message
+    }
   }
 }
